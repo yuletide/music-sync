@@ -131,15 +131,16 @@ class SoundCloudSource:
         """Resolve username to user ID."""
         url = f"{self.base_url}/resolve"
         params = {
-            "url": f"https://soundcloud.com/{self.username}"
+            "url": f"https://soundcloud.com/{self.username}",
+            "client_id": self.client_id
         }
-        # Only add client_id if no OAuth token
-        if not self.oauth_token:
-            params["client_id"] = self.client_id
         
-        headers = {}
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
         if self.oauth_token:
             headers["Authorization"] = f"OAuth {self.oauth_token}"
+            
         resp = requests.get(url, params=params, headers=headers)
         resp.raise_for_status()
         return resp.json()["id"]
@@ -149,15 +150,16 @@ class SoundCloudSource:
         user_id = self.resolve_user()
         url = f"{self.base_url}/users/{user_id}/likes"
         params = {
-            "limit": limit
+            "limit": limit,
+            "client_id": self.client_id
         }
-        # Only add client_id if no OAuth token
-        if not self.oauth_token:
-            params["client_id"] = self.client_id
         
-        headers = {}
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
         if self.oauth_token:
             headers["Authorization"] = f"OAuth {self.oauth_token}"
+            
         resp = requests.get(url, params=params, headers=headers)
         resp.raise_for_status()
         data = resp.json()
