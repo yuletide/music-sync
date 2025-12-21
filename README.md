@@ -20,8 +20,11 @@ poetry install
 cp .env.example .env
 
 # Edit .env and add your SoundCloud credentials
-# Get SoundCloud client_id (inspect network tab on soundcloud.com)
-# Look for any API request and copy the client_id parameter
+# For private likes, get your OAuth token:
+#   1. Open soundcloud.com in your browser (logged in)
+#   2. Open DevTools > Application > Cookies
+#   3. Find the 'oauth_token' cookie and copy its value
+#   4. Paste it as SOUNDCLOUD_OAUTH_TOKEN in .env
 ```
 
 ## Usage

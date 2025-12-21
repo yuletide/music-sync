@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from urllib.parse import quote_plus
 
+import browser_cookie3
 import requests
 from dotenv import load_dotenv
 
@@ -67,19 +68,79 @@ class Track:
 class SoundCloudSource:
     """Fetch likes from SoundCloud via API v2."""
     
-    def __init__(self, username: str, client_id: str):
+    def __init__(self, username: str, client_id: Optional[str] = None, oauth_token: Optional[str] = None):
         self.username = username
-        self.client_id = client_id
+        self.client_id = client_id or self._get_client_id()
+        self.oauth_token = oauth_token or self._get_oauth_token()
         self.base_url = "https://api-v2.soundcloud.com"
+    
+    def _get_oauth_token(self) -> Optional[str]:
+        """Extract oauth_token from browser cookies."""
+        try:
+            # Try Chrome first, then other browsers
+            for cookie_fn in [browser_cookie3.chrome, browser_cookie3.firefox, browser_cookie3.safari]:
+                try:
+                    cookies = cookie_fn(domain_name='soundcloud.com')
+                    for cookie in cookies:
+                        if cookie.name == 'oauth_token':
+                            token = cookie.value
+                            print(f"Found OAuth token from browser cookies: {token[:20]}...")
+                            return token
+                except:
+                    continue
+        except Exception as e:
+            print(f"Could not extract OAuth token from browser: {e}")
+        return None
+    
+    def _get_client_id(self) -> str:
+        """Extract client_id from SoundCloud's JavaScript."""
+        import re
+        
+        # Fetch the main page
+        resp = requests.get("https://soundcloud.com")
+        resp.raise_for_status()
+        
+        # Find script URLs
+        script_urls = re.findall(r'<script[^>]+src="([^"]+)"', resp.text)
+        
+        # Look for client_id in script files
+        for script_url in script_urls:
+            if not script_url.startswith('http'):
+                script_url = f"https://soundcloud.com{script_url}"
+            
+            try:
+                script_resp = requests.get(script_url, timeout=5)
+                # Try multiple patterns
+                patterns = [
+                    r'client_id:"([a-zA-Z0-9]{32})"',
+                    r'client_id":"([a-zA-Z0-9]{32})"',
+                    r'client_id=([a-zA-Z0-9]{32})',
+                ]
+                for pattern in patterns:
+                    match = re.search(pattern, script_resp.text)
+                    if match:
+                        client_id = match.group(1)
+                        print(f"Found client_id: {client_id}")
+                        return client_id
+            except:
+                continue
+        
+        raise Exception("Could not extract client_id from SoundCloud")
     
     def resolve_user(self) -> int:
         """Resolve username to user ID."""
         url = f"{self.base_url}/resolve"
         params = {
-            "url": f"https://soundcloud.com/{self.username}",
-            "client_id": self.client_id
+            "url": f"https://soundcloud.com/{self.username}"
         }
-        resp = requests.get(url, params=params)
+        # Only add client_id if no OAuth token
+        if not self.oauth_token:
+            params["client_id"] = self.client_id
+        
+        headers = {}
+        if self.oauth_token:
+            headers["Authorization"] = f"OAuth {self.oauth_token}"
+        resp = requests.get(url, params=params, headers=headers)
         resp.raise_for_status()
         return resp.json()["id"]
     
@@ -88,10 +149,16 @@ class SoundCloudSource:
         user_id = self.resolve_user()
         url = f"{self.base_url}/users/{user_id}/likes"
         params = {
-            "limit": limit,
-            "client_id": self.client_id
+            "limit": limit
         }
-        resp = requests.get(url, params=params)
+        # Only add client_id if no OAuth token
+        if not self.oauth_token:
+            params["client_id"] = self.client_id
+        
+        headers = {}
+        if self.oauth_token:
+            headers["Authorization"] = f"OAuth {self.oauth_token}"
+        resp = requests.get(url, params=params, headers=headers)
         resp.raise_for_status()
         data = resp.json()
         
@@ -149,15 +216,40 @@ class AppleMusicDownloader:
     
     def __init__(self, repo_path: Path):
         self.repo_path = repo_path
+        self.media_user_token = self._get_media_user_token()
+    
+    def _get_media_user_token(self) -> Optional[str]:
+        """Extract media-user-token from browser cookies."""
+        try:
+            # Try to get Apple Music token from browser
+            for cookie_fn in [browser_cookie3.chrome, browser_cookie3.firefox, browser_cookie3.safari]:
+                try:
+                    cookies = cookie_fn(domain_name='apple.com')
+                    for cookie in cookies:
+                        if cookie.name == 'media-user-token':
+                            print(f"Found Apple Music media-user-token from browser cookies")
+                            return cookie.value
+                except:
+                    continue
+        except Exception as e:
+            print(f"Could not extract media-user-token from browser: {e}")
+        return None
     
     def search_and_download(self, query: str) -> bool:
         """Search Apple Music and download via go run main.go."""
+        if not self.media_user_token:
+            print(f"  No Apple Music token found - skipping")
+            return False
+        
         try:
+            # Add filter to exclude [mixed] results
+            filtered_query = f"{query} -mixed"
+            
             # Use the apple-music-downloader's search + download
             cmd = [
                 "go", "run", "main.go",
                 "--search", "song",
-                query
+                filtered_query
             ]
             result = subprocess.run(
                 cmd,
@@ -209,12 +301,16 @@ def main():
     
     # Fetch likes from source
     if args.source == "soundcloud":
-        if not args.soundcloud_username or not args.soundcloud_client_id:
-            print("Error: --soundcloud-username and --soundcloud-client-id required")
+        if not args.soundcloud_username:
+            print("Error: --soundcloud-username required")
             sys.exit(1)
         
         print(f"Fetching SoundCloud likes for @{args.soundcloud_username}...")
-        source = SoundCloudSource(args.soundcloud_username, args.soundcloud_client_id)
+        source = SoundCloudSource(
+            args.soundcloud_username, 
+            args.soundcloud_client_id,
+            os.getenv("SOUNDCLOUD_OAUTH_TOKEN")
+        )
         tracks = source.fetch_likes(args.limit)
     else:
         print(f"Unknown source: {args.source}")
