@@ -26,6 +26,13 @@ cp .env.example .env
 
 ## Usage
 
+**Important:** Make sure the apple-music-downloader wrapper is running before starting the sync:
+```bash
+cd ../apple-music-downloader/wrapper
+git checkout yuletide/arm64buildall
+rm -f rootfs/tmp/2fa.txt && docker run --rm --privileged -v "$(pwd)/rootfs/tmp:/app/rootfs/tmp" -p 10020:10020 -p 20020:20020 -e args="-L email:pass -F -H 0.0.0.0" wrapper
+```
+
 ### First Run (process recent 10 likes)
 
 ```bash
