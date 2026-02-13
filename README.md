@@ -14,7 +14,7 @@ Sync liked tracks from streaming services (SoundCloud, etc.) to Bandcamp (for pu
 
 ```bash
 # Install dependencies
-poetry install
+uv sync
 
 # Create .env file from example
 cp .env.example .env
@@ -40,10 +40,10 @@ rm -f rootfs/tmp/2fa.txt && docker run --rm --privileged -v "$(pwd)/rootfs/tmp:/
 
 ```bash
 # With .env configured:
-poetry run python sync.py --open-bandcamp
+uv run sync.py --open-bandcamp
 
 # Or override with command-line args:
-poetry run python sync.py \
+uv run sync.py \
   --soundcloud-username YOUR_USERNAME \
   --soundcloud-client-id YOUR_CLIENT_ID \
   --initial-download 10 \
@@ -54,7 +54,7 @@ poetry run python sync.py \
 
 ```bash
 # Simple - just use .env config:
-poetry run python sync.py --open-bandcamp
+uv run sync.py --open-bandcamp
 ```
 
 ### Options
@@ -84,8 +84,8 @@ The tool is designed to support multiple sources. To add a new source:
 
 ## Requirements
 
-- Python 3.10+
-- Poetry
+- Python 3.11+
+- uv
 - [apple-music-downloader](https://github.com/zhaarey/apple-music-downloader) (for Apple Music fallback)
 - SoundCloud client_id (obtained from browser network inspector)
 

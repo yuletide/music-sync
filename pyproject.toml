@@ -1,17 +1,14 @@
-[tool.poetry]
+[project]
 name = "music-sync"
 version = "0.1.0"
 description = "Sync liked tracks from streaming services to Bandcamp/Apple Music"
-authors = ["Alex Yule <adyule@gmail.com>"]
+authors = [
+    {name = "Alex Yule", email = "adyule@gmail.com"}
+]
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.11"
-requests = "^2.32.5"
-python-dotenv = "^1.2.1"
-browser-cookie3 = "^0.20.1"
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.32.5",
+    "python-dotenv>=1.2.1",
+    "browser-cookie3>=0.20.1",
+]
